@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>3D Printing Trainer Guide — VHS</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #FAFAFA; }</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useRef } = React;
+
+const C = {
+  navy:"#1B2A3B", blue:"#2E6DA4", blueLt:"#EBF4FB", blueMd:"#7BB8E8",
+  green:"#1E6B3C", greenLt:"#F2FAF5", red:"#C0392B", redLt:"#FDF3F2",
+  amber:"#935D0D", amberLt:"#FEFBF3", teal:"#1A6B5A", tealLt:"#F0FAF7",
+  purple:"#7B4FE9", purpleLt:"#F5F0FF",
+  grey:"#F7F8FA", rule:"#F0F0F0", text:"#222", muted:"#666", subtle:"#999",
+};
+
+const OVERVIEW = {
+  title: "Trainer Guide",
+  subtitle: "How to deliver 3D printing training at VHS",
+  description: "This guide is for VHS members who are training others on the Prusa MK3S. It covers how to run a session, what to watch for at each stage, common learner difficulties, and how to sign off a trainee.",
+  session: {
+    duration: "~2 hours",
+    format: "Small group — one learner per printer",
+    signoff: "Supervised first print completed successfully",
+    filament: "Free at VHS — donated by the community. If a learner uses a large amount, ask them to consider donating some.",
+  },
+};
+
+const PHASES = [
+  {
+    id: 0,
+    time: "0–15 min",
+    title: "Welcome & Orientation",
+    goal: "Learners are settled, understand the session structure, and have read the mental model section.",
+    color: C.navy,
+    trainer: [
+      "Introduce yourself and confirm everyone has the training guide open on their phone or the VHS PC.",
+      "Point out the emergency stop procedure — make sure everyone reads it before touching the printer.",
+      "Emphasise the eyesight rule: they must stay within eyesight of the printer while it is running.",
+      "Explain the filament policy: filament is free and community-donated. If they use a lot, ask them to donate some.",
+      "Ask everyone to read 'How This Printer Works' and 'Choosing Filament' before starting Task 1. Give them 5–10 minutes.",
+      "Take questions before moving on.",
+    ],
+    watch: [
+      "Learners who skip straight to Task 1 — redirect them to the mental model section first. It prevents a lot of confusion later.",
+      "Learners who seem anxious — reassure them that nothing they do during training will break the printer permanently.",
+    ],
+    tip: "Have a few example prints to hand. Showing a finished object makes the training feel immediately relevant.",
+  },
+  {
+    id: 1,
+    time: "15–30 min",
+    title: "Task 1 — Prepare the Printer",
+    goal: "Print sheet is clean and filament is loaded and extruding.",
+    color: "#2E6DA4",
+    trainer: [
+      "Circulate as learners wash the print sheet. Check they are actually washing it — some will rinse and call it done.",
+      "Remind them to hold the sheet by the edges only after washing.",
+      "Watch the filament loading step closely. First-timers often push the filament in too slowly or stop before clean plastic appears.",
+      "Check every learner has clean, consistent plastic extruding from the nozzle before moving on.",
+    ],
+    watch: [
+      "Sheet rinsed but not washed with soap — oils won't be removed without soap.",
+      "Learner touching the flat surface of the sheet after washing — ask them to rewash.",
+      "Filament not extruding cleanly after loading — may need a second load attempt or a nozzle wipe.",
+    ],
+    tip: "This task is quick but critical. A dirty bed causes more failed first prints than any other single factor.",
+  },
+  {
+    id: 2,
+    time: "30–50 min",
+    title: "Task 2 — Prepare File in PrusaSlicer",
+    goal: "G-code is exported to the SD card. Layer preview reviewed.",
+    color: "#1A6B5A",
+    trainer: [
+      "Ensure learners are on the VHS PC or have PrusaSlicer open on their own machine.",
+      "Check each learner has selected the correct printer profile — Original Prusa i3 MK3S & MK3S+. Wrong profiles are a common silent error.",
+      "Redirect any learner choosing a complex model for their first print — a calibration cube or simple flat object gives the best chance of success.",
+      "Before they export, ask them to show you the layer preview. Walk through what they are looking at and what a good preview looks like.",
+      "Confirm the G-code file is on the SD card before moving to Task 3.",
+    ],
+    watch: [
+      "Incorrect printer profile selected — catch this before the SD card is exported.",
+      "Learners skipping the layer preview — this is where problems are caught before wasting a print.",
+      "Complex or unsupported models chosen for a first print — redirect firmly but kindly.",
+    ],
+    tip: "Task 2 takes longer than learners expect. Don't rush it — a correct slicer setup is the difference between a successful print and a wasted one.",
+  },
+  {
+    id: 3,
+    time: "50–65 min",
+    title: "Task 3 — Start the Print",
+    goal: "Print is running and the first layer has begun.",
+    color: "#7B4FE9",
+    trainer: [
+      "Watch each learner insert the SD card and navigate to their file on the LCD.",
+      "Explain the homing and heat-up sequence — some learners think something is wrong when the printer sits still for 2–4 minutes.",
+      "Point out the purge line before it happens so learners aren't surprised. Remind them not to remove it.",
+      "Brief everyone on Live Adjust Z now — before the first layer starts — so they know what tool is available if needed.",
+      "Once the first layer starts, position yourself to watch it with each learner in turn.",
+    ],
+    watch: [
+      "Learners who walk away immediately after pressing start — remind them the first layer requires eyesight.",
+      "No filament coming from the nozzle during the purge line — filament may not be loaded correctly. Stop and reload.",
+      "Printer homing unexpectedly or hitting an end-stop — stop the print and check the SD card file.",
+    ],
+    tip: "The homing sequence is a good 2 minutes to briefly recap what Live Adjust Z does and which direction to turn the knob.",
+  },
+  {
+    id: 4,
+    time: "65–80 min",
+    title: "Task 4 — Watch the First Layer",
+    goal: "First layer is flat, stuck, and the learner can assess it themselves.",
+    color: C.red,
+    trainer: [
+      "Stand with each learner for the entire first layer — do not let them watch alone on their first print.",
+      "Ask them to describe what they see before you offer any assessment. Build their observation skills.",
+      "If the layer looks bad, guide them through Live Adjust Z rather than doing it for them. Talk them through each step.",
+      "If the layer fails completely — stop the print together, diagnose the cause, clean the bed, and restart. Treat it as a learning opportunity.",
+      "Once the first layer is confirmed good, explain what to watch for over the rest of the print.",
+    ],
+    watch: [
+      "Round spaghetti lines — nozzle too far, walk them through Live Adjust Z (decrease, counter-clockwise).",
+      "Nozzle scraping — nozzle too close, increase Z offset immediately.",
+      "Plastic peeling at edges — bed not clean enough or bed temperature not reached. Stop and clean.",
+      "Learners adjusting Live Adjust Z too aggressively — encourage small increments, one click at a time.",
+      "Learners declaring the first layer good enough when it clearly isn't — gently push back.",
+    ],
+    tip: "The good vs bad first layer diagram in the training guide is useful here — open it and compare it to what you are both seeing on the bed.",
+  },
+  {
+    id: 5,
+    time: "80–110 min",
+    title: "Task 5 — After the Print",
+    goal: "Print removed correctly. Printer shut down. Filament stored.",
+    color: C.amber,
+    trainer: [
+      "Check in with each learner every 10–15 minutes while the print runs. Use this time to discuss troubleshooting.",
+      "Watch the learner remove the print — ensure they wait for the sheet to cool and flex rather than scrape.",
+      "Watch the filament unload sequence — they must use the LCD menu, not pull cold.",
+      "Watch the cooldown sequence — this is the step most often skipped. The nozzle must reach below 40°C before power off.",
+      "Check filament is stored in a sealed bag with silica gel.",
+    ],
+    watch: [
+      "Learners who try to remove the print while the sheet is still warm — make them wait.",
+      "Learners who skip the Cooldown sequence — this causes heat creep clogs. Do not allow it.",
+      "Learners who use a scraper or knife — stop them immediately. This damages the PEI sheet.",
+      "Filament stored loose without a sealed bag — remind them about moisture damage.",
+      "Learners who have walked away from the printer while it is still running — remind them of the eyesight rule.",
+    ],
+    tip: "The waiting time while the print runs is your best teaching window. Go through 2–3 troubleshooting scenarios from the training guide together.",
+  },
+  {
+    id: 6,
+    time: "110–120 min",
+    title: "Wrap-up",
+    goal: "Learner has completed a successful supervised print and knows where to get help.",
+    color: C.green,
+    trainer: [
+      "Ask the learner to complete the 'Am I Ready?' checklist in the training guide. Review any items they are unsure about.",
+      "Point them to the Knowledge Check in the training guide — encourage them to complete it after the session.",
+      "Direct them to #3d_printing on Slack for ongoing questions and community support.",
+      "Remind them the training guide and quick reference are available at the printer URL any time.",
+      "Record the session in the VHS system.",
+    ],
+    watch: [
+      "Learners who struggled significantly — recommend they book a second session before printing alone.",
+      "Any equipment issues noticed during the session — log them in #3d_printing before leaving.",
+    ],
+    tip: "End on a positive note. Show them the 'What's Next' section in the training guide — it gives them a clear path forward and keeps momentum going.",
+  },
+];
+
+const SIGNOFF = [
+  "Learner washed the print sheet correctly and handled it by the edges.",
+  "Learner loaded filament until clean plastic extruded from the nozzle.",
+  "Learner selected the correct printer profile in PrusaSlicer.",
+  "Learner reviewed the layer preview before exporting G-code.",
+  "Learner stayed within eyesight for the entire first layer.",
+  "Learner assessed the first layer quality by eye without prompting.",
+  "Learner adjusted Live Adjust Z correctly (or first layer was good without adjustment).",
+  "Learner waited for the sheet to cool before removing the print.",
+  "Learner removed the print by flexing — no tools used.",
+  "Learner ran the Cooldown sequence and waited for below 40°C before powering off.",
+  "Learner stored filament in a sealed bag.",
+  "Learner completed the supervised first print successfully.",
+];
+
+const FAQS = [
+  {
+    q: "A learner's print is failing mid-way. Should I stop it?",
+    a: "Ask the learner to make the call — describe what they see and ask whether they'd stop or continue. Use the 'Should I cancel this print?' guide in the training doc. Only intervene directly if there's a safety issue (smoke, scraping, error message).",
+  },
+  {
+    q: "A learner is struggling with Live Adjust Z and the first layer keeps failing.",
+    a: "Stop the print, clean the bed together, and restart. Walk them through one adjustment at a time. If it fails three times, check the bed is seated correctly on the magnets and the print sheet is clean. Sometimes the issue is oil from a previous fingerprint that wasn't fully washed off.",
+  },
+  {
+    q: "A learner wants to print something complex on their first attempt.",
+    a: "Redirect them firmly but kindly. Explain that a calibration cube or simple object gives them the best chance of a successful supervised print, and they can try complex models in their own time once signed off. A failed complex print in a 2-hour session means no sign-off.",
+  },
+  {
+    q: "A learner finishes much faster than expected.",
+    a: "Use the extra time to go deeper — walk through the troubleshooting section together, discuss filament types, or have them look at the What's Next section. Don't rush sign-off — wait for the print to fully complete.",
+  },
+  {
+    q: "Something breaks during training.",
+    a: "Stay calm. You are not in trouble. Leave a note on the printer and post in #3d_printing on Slack with a photo and description. This is also a good teaching moment — show the learner how to report issues correctly.",
+  },
+  {
+    q: "A learner asks about a material or setting you're not sure about.",
+    a: "Say you're not sure and look it up together. The Prusa Knowledge Base (help.prusa3d.com) is the authoritative reference. Modelling good research behaviour is more valuable than knowing every answer.",
+  },
+];
+
+// ── Components ──────────────────────────────────────────────────────────────
+
+function Callout({ type, title, lines = [] }) {
+  const cfg = {
+    warning: { bar: C.amber, bg: C.amberLt, label: "WATCH FOR — " },
+    tip:     { bar: C.blue,  bg: C.blueLt,  label: "TRAINER TIP — " },
+    note:    { bar: C.teal,  bg: C.tealLt,  label: "NOTE — " },
+  };
+  const s = cfg[type] || cfg.note;
+  return (
+    <div style={{ borderLeft: `4px solid ${s.bar}`, background: s.bg, borderRadius: "0 6px 6px 0", padding: "10px 14px", margin: "10px 0" }}>
+      <div style={{ fontWeight: 700, color: s.bar, fontSize: "0.75rem", letterSpacing: "0.05em", marginBottom: lines.length ? 5 : 0 }}>{s.label}{title}</div>
+      {lines.map((l, i) => <div key={i} style={{ fontSize: "0.83rem", color: "#333", marginTop: 4, lineHeight: 1.6, fontFamily: "'DM Sans', sans-serif" }}>• {l}</div>)}
+    </div>
+  );
+}
+
+function Check({ text, done, onToggle }) {
+  return (
+    <button onClick={onToggle} style={{ display: "flex", alignItems: "flex-start", gap: 10, width: "100%", background: done ? C.greenLt : "#fff", border: `1px solid ${done ? "#A8D5B5" : "#E8E8E8"}`, borderRadius: 8, padding: "10px 12px", cursor: "pointer", marginBottom: 6, textAlign: "left", transition: "all 0.15s" }}>
+      <div style={{ width: 20, height: 20, borderRadius: 4, border: `2px solid ${done ? C.green : "#CCC"}`, background: done ? C.green : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1, transition: "all 0.15s" }}>
+        {done && <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+      </div>
+      <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.84rem", color: done ? C.subtle : C.text, textDecoration: done ? "line-through" : "none", lineHeight: 1.5 }}>{text}</span>
+    </button>
+  );
+}
+
+function App() {
+  const [view, setView]       = useState("home");
+  const [activePhase, setActivePhase] = useState(null);
+  const [openFaq, setOpenFaq] = useState(null);
+  const [signoff, setSignoff] = useState({});
+  const topRef = useRef(null);
+
+  function scrollTop() { topRef.current?.scrollIntoView({ behavior: "smooth" }); }
+  function goView(v)   { setView(v); scrollTop(); }
+  function goPhase(id) { setActivePhase(id); setView("phase"); scrollTop(); }
+  function goHome()    { setView("home"); scrollTop(); }
+
+  const signoffCount = Object.values(signoff).filter(Boolean).length;
+  const allSignedOff = signoffCount === SIGNOFF.length;
+  const phase = PHASES.find(p => p.id === activePhase);
+
+  const TopBar = () => (
+    <div style={{ background: C.navy, position: "sticky", top: 0, zIndex: 50, padding: "0 16px" }}>
+      <div style={{ maxWidth: 660, margin: "0 auto", display: "flex", alignItems: "center", height: 52, gap: 12 }}>
+        <button onClick={goHome} style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 6, height: 28, background: C.blueMd, borderRadius: 3 }} />
+          <span style={{ color: "#fff", fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: "0.9rem" }}>Trainer Guide</span>
+          <span style={{ color: "#A8C8E8", fontFamily: "'DM Sans', sans-serif", fontSize: "0.9rem" }}>VHS · Prusa MK3S</span>
+        </button>
+        <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
+          {[["Checklist", "signoff"], ["FAQs", "faq"]].map(([label, v]) => (
+            <button key={v} onClick={() => goView(v)} style={{ background: view === v ? C.blue : "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6, padding: "4px 10px", color: "#fff", cursor: "pointer", fontSize: "0.75rem", fontWeight: 600, fontFamily: "'DM Sans', sans-serif" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const Page = ({ children }) => (
+    <div style={{ minHeight: "100vh", background: "#FAFAFA", fontFamily: "'DM Mono', 'Courier New', monospace" }}>
+      <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #FAFAFA; } ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #DDD; border-radius: 2px; } button { font-family: inherit; } .tap:active { opacity: 0.75; transform: scale(0.99); }`}</style>
+      <div ref={topRef} />
+      <TopBar />
+      <div style={{ maxWidth: 660, margin: "0 auto", padding: "0 16px 80px" }}>{children}</div>
+    </div>
+  );
+
+  // ── PHASE VIEW ──────────────────────────────────────────────────────────────
+  if (view === "phase" && phase) return (
+    <Page>
+      <div style={{ paddingTop: 20 }}>
+        <div style={{ display: "flex", marginBottom: 16, borderRadius: 10, overflow: "hidden", border: `1px solid ${phase.color}44` }}>
+          <div style={{ background: phase.color, width: 52, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ color: "#fff", fontWeight: 700, fontSize: "1.3rem" }}>{phase.id}</span>
+          </div>
+          <div style={{ background: "#fff", padding: "12px 14px", flex: 1 }}>
+            <div style={{ fontSize: "0.68rem", color: phase.color, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 2 }}>PHASE {phase.id} · {phase.time}</div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: "1rem", color: C.navy, lineHeight: 1.3 }}>{phase.title}</div>
+            <div style={{ fontSize: "0.75rem", color: C.muted, marginTop: 3, fontFamily: "'DM Sans', sans-serif" }}>Goal: {phase.goal}</div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: "0.68rem", color: C.subtle, fontWeight: 700, letterSpacing: "0.12em", marginBottom: 8 }}>WHAT TO DO</div>
+        {phase.trainer.map((step, i) => (
+          <div key={i} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.rule}`, alignItems: "flex-start" }}>
+            <div style={{ width: 20, height: 20, borderRadius: "50%", background: phase.color, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.68rem", fontWeight: 700, flexShrink: 0, marginTop: 1 }}>{i + 1}</div>
+            <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", color: C.text, lineHeight: 1.6, paddingTop: 1 }}>{step}</span>
+          </div>
+        ))}
+
+        <div style={{ marginTop: 16 }}>
+          <Callout type="warning" title="Watch for:" lines={phase.watch} />
+        </div>
+        <Callout type="tip" title={phase.tip} />
+
+        <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
+          {phase.id < PHASES.length - 1 && (
+            <button className="tap" onClick={() => goPhase(phase.id + 1)} style={{ background: phase.color, border: "none", borderRadius: 8, padding: "10px 16px", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: "0.88rem", fontFamily: "'DM Sans', sans-serif" }}>
+              Next Phase →
+            </button>
+          )}
+          {phase.id === PHASES.length - 1 && (
+            <button className="tap" onClick={() => goView("signoff")} style={{ background: C.green, border: "none", borderRadius: 8, padding: "10px 16px", color: "#fff", fontWeight: 700, cursor: "pointer", fontSize: "0.88rem", fontFamily: "'DM Sans', sans-serif" }}>
+              Sign-off Checklist →
+            </button>
+          )}
+          <button className="tap" onClick={goHome} style={{ background: "none", border: "1px solid #E0E0E0", borderRadius: 8, padding: "10px 12px", color: C.subtle, cursor: "pointer", fontSize: "0.88rem", fontFamily: "'DM Sans', sans-serif" }}>
+            ← Home
+          </button>
+        </div>
+      </div>
+    </Page>
+  );
+
+  // ── SIGN-OFF VIEW ───────────────────────────────────────────────────────────
+  if (view === "signoff") return (
+    <Page>
+      <div style={{ paddingTop: 24 }}>
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: "1.3rem", color: C.navy, marginBottom: 4 }}>Training Checklist</div>
+        <div style={{ fontSize: "0.82rem", color: C.muted, marginBottom: 16, fontFamily: "'DM Sans', sans-serif", lineHeight: 1.55 }}>
+          Tick each item as you observe it during the session.
+        </div>
+
+        {SIGNOFF.map((item, i) => (
+          <Check key={i} text={item} done={!!signoff[i]} onToggle={() => setSignoff(p => ({ ...p, [i]: !p[i] }))} />
+        ))}
+
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          <button className="tap" onClick={() => setSignoff({})} style={{ background: "none", border: "1px solid #E0E0E0", borderRadius: 8, padding: "10px 14px", color: C.subtle, cursor: "pointer", fontSize: "0.83rem", fontFamily: "'DM Sans', sans-serif" }}>Reset</button>
+          <button className="tap" onClick={goHome} style={{ background: "none", border: "1px solid #E0E0E0", borderRadius: 8, padding: "10px 12px", color: C.subtle, cursor: "pointer", fontSize: "0.88rem", fontFamily: "'DM Sans', sans-serif" }}>← Home</button>
+        </div>
+      </div>
+    </Page>
+  );
+
+  // ── FAQ VIEW ────────────────────────────────────────────────────────────────
+  if (view === "faq") return (
+    <Page>
+      <div style={{ paddingTop: 24 }}>
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: "1.3rem", color: C.navy, marginBottom: 4 }}>Common Situations</div>
+        <div style={{ fontSize: "0.82rem", color: C.muted, marginBottom: 16, fontFamily: "'DM Sans', sans-serif" }}>Tap a situation to see how to handle it.</div>
+        {FAQS.map((item, i) => (
+          <div key={i} style={{ borderRadius: 8, border: `1px solid ${openFaq === i ? C.blue : "#E8E8E8"}`, marginBottom: 8, overflow: "hidden" }}>
+            <button className="tap" onClick={() => setOpenFaq(openFaq === i ? null : i)} style={{ width: "100%", background: openFaq === i ? C.blueLt : "#fff", border: "none", padding: "13px 14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: "0.87rem", color: C.navy, textAlign: "left" }}>{item.q}</span>
+              <span style={{ color: C.blue, fontSize: "1.1rem", flexShrink: 0, display: "inline-block", transform: openFaq === i ? "rotate(45deg)" : "none", transition: "transform 0.2s" }}>+</span>
+            </button>
+            {openFaq === i && (
+              <div style={{ padding: "4px 14px 14px", background: C.blueLt, fontFamily: "'DM Sans', sans-serif", fontSize: "0.85rem", color: "#333", lineHeight: 1.65 }}>
+                {item.a}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Page>
+  );
+
+  // ── HOME ────────────────────────────────────────────────────────────────────
+  return (
+    <Page>
+      <div style={{ paddingTop: 22 }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: "0.68rem", color: C.blue, fontWeight: 700, letterSpacing: "0.12em", marginBottom: 5 }}>VANCOUVER HACKSPACE · VHS-3DP-PRUSAMK3</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: "1.6rem", color: C.navy, lineHeight: 1.2, marginBottom: 6 }}>3D Printing<br />Trainer Guide</div>
+          <div style={{ fontSize: "0.82rem", color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>Original Prusa i3 MK3S · How to deliver training</div>
+        </div>
+
+        {/* Session overview */}
+        <div style={{ background: "#fff", border: "1px solid #E8E8E8", borderRadius: 10, padding: "14px", marginBottom: 16 }}>
+          <div style={{ fontSize: "0.68rem", color: C.subtle, fontWeight: 700, letterSpacing: "0.1em", marginBottom: 10 }}>SESSION OVERVIEW</div>
+          {[
+            ["Duration", OVERVIEW.session.duration],
+            ["Format", OVERVIEW.session.format],
+            ["Goal", OVERVIEW.session.signoff],
+            ["Filament policy", OVERVIEW.session.filament],
+          ].map(([label, value]) => (
+            <div key={label} style={{ display: "flex", gap: 12, padding: "6px 0", borderBottom: "1px solid #F5F5F5" }}>
+              <span style={{ fontSize: "0.75rem", color: C.subtle, width: 130, flexShrink: 0, paddingTop: 1 }}>{label}</span>
+              <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: "0.83rem", color: C.text, lineHeight: 1.5 }}>{value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Phases */}
+        <div style={{ fontSize: "0.68rem", color: C.subtle, fontWeight: 700, letterSpacing: "0.12em", marginBottom: 10 }}>7 PHASES — ~2 HOURS</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 20 }}>
+          {PHASES.map((p) => (
+            <button key={p.id} className="tap" onClick={() => goPhase(p.id)} style={{ display: "flex", alignItems: "center", background: "#fff", border: "1px solid #E8E8E8", borderRadius: 8, cursor: "pointer", overflow: "hidden", textAlign: "left" }}>
+              <div style={{ width: 42, background: p.color, display: "flex", alignItems: "center", justifyContent: "center", alignSelf: "stretch", flexShrink: 0 }}>
+                <span style={{ color: "#fff", fontWeight: 700, fontSize: "1rem" }}>{p.id}</span>
+              </div>
+              <div style={{ flex: 1, padding: "10px 12px" }}>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 600, fontSize: "0.88rem", color: C.navy, marginBottom: 2 }}>{p.title}</div>
+                <div style={{ fontSize: "0.72rem", color: C.subtle, fontFamily: "'DM Sans', sans-serif" }}>{p.time} · {p.goal}</div>
+              </div>
+              <span style={{ padding: "0 12px", color: "#CCC" }}>›</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Quick links */}
+        <div style={{ fontSize: "0.68rem", color: C.subtle, fontWeight: 700, letterSpacing: "0.12em", marginBottom: 10 }}>TOOLS</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 20 }}>
+          {[
+            { label: "Checklist", sub: `${SIGNOFF.length} items — tick as you go`, view: "signoff", color: C.green },
+            { label: "Common Situations", sub: "How to handle tricky moments", view: "faq", color: C.blue },
+          ].map((item) => (
+            <button key={item.view} className="tap" onClick={() => goView(item.view)} style={{ background: "#fff", border: "1px solid #E8E8E8", borderRadius: 8, padding: "12px", cursor: "pointer", textAlign: "left" }}>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontWeight: 700, fontSize: "0.83rem", color: C.navy, marginBottom: 2 }}>{item.label}</div>
+              <div style={{ fontSize: "0.72rem", color: C.subtle, fontFamily: "'DM Sans', sans-serif" }}>{item.sub}</div>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ marginTop: 8, fontSize: "0.68rem", color: "#CCCCCC", textAlign: "center", fontFamily: "'DM Sans', sans-serif" }}>
+          VHS-3DP-PRUSAMK3 · Trainer Guide · v1.0 · April 2026
+        </div>
+      </div>
+    </Page>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
