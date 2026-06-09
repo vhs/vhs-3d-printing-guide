@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>3D Printing Training Guide — VHS</title>
+  <meta name="description" content="Vancouver Hackspace Prusa MK3S 3D Printing Training Guide" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #FAFAFA; }</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+const { useState, useRef } = React;
+
+
+const C = {
+  navy:"#1B2A3B",blue:"#2E6DA4",blueLt:"#EBF4FB",blueMd:"#7BB8E8",
+  green:"#1E6B3C",greenLt:"#F2FAF5",red:"#C0392B",redLt:"#FDF3F2",
+  amber:"#935D0D",amberLt:"#FEFBF3",gold:"#7D6608",goldLt:"#FEFDF0",
+  teal:"#1A6B5A",tealLt:"#F0FAF7",grey:"#F7F8FA",rule:"#F0F0F0",
+  text:"#222222",muted:"#666666",subtle:"#999999",
+};
+
+const HOW_IT_WORKS = {
+  title:"How This Printer Works",subtitle:"Build your mental model before you start",
+  objective:"After reading this you will understand what the printer is doing at each stage — which makes every task easier to follow and every problem easier to diagnose.",
+  concept:"The Prusa MK3S is an FDM printer — Fused Deposition Modelling. It works exactly like a hot glue gun on a robot arm: it melts plastic filament and deposits it in precise lines, building your object one thin layer at a time from the bottom up.",
+  parts:[
+    {name:"Extruder",desc:"The motor at the top that grips and feeds the filament. Think of it as the engine pushing fuel into the hotend.",why:"If the extruder slips or grinds, no plastic flows — you get under-extrusion."},
+    {name:"Hotend & Nozzle",desc:"The brass tip that melts the filament to ~215°C and deposits it on the bed. The nozzle hole is 0.4 mm wide — about the diameter of a human hair × 4.",why:"Nozzle height above the bed is critical. Too far = lines don't stick. Too close = nozzle scrapes and clogs."},
+    {name:"Print Bed (Sheet)",desc:"The magnetic spring-steel PEI sheet the print builds on. PLA bonds to it when hot, releases when cool.",why:"Oils from your fingers break that bond — always handle by the edges."},
+    {name:"Stepper Motors & Belts",desc:"Move the hotend (X/Y axes) and bed (Z axis) with extreme precision. Each step is a fraction of a millimetre.",why:"Loose belts = layer shifting. If your print has horizontal offsets mid-print, belts are the first thing to check."},
+    {name:"LCD & Knob",desc:"The control interface. Rotate to navigate menus, press to select.",why:"All temperature control, filament loading, and Live Adjust Z happen here."},
+  ],
+  layers:"A typical 20 mm tall object printed at 0.20 mm layer height = 100 individual passes. Each pass is about the width of a human hair. The printer does this automatically — your job is to prepare the file correctly and monitor the first few layers.",
+  filamentPath:"Filament spool → extruder motor → PTFE tube → hotend → nozzle → bed",
+  reflection:"Before moving on: picture the filament path from spool to nozzle. Can you describe what each part does in one sentence? If yes, you're ready to start.",
+};
+
+const FILAMENT_GUIDE = {
+  title:"Choosing Your Filament",subtitle:"A decision framework, not just a table",
+  intro:"Filament choice matters more than most beginners expect. The wrong material for your use case leads to failed prints, wasted filament, and frustration. Use this framework.",
+  decision:[
+    {q:"Will it live outdoors or in a hot car?",a:"Use PETG — heat resistant to ~80°C and handles UV reasonably well for most outdoor uses. Not PLA — it warps above 60°C."},
+    {q:"Does it need to flex or bend?",a:"Use TPU. It prints slowly and requires a direct-drive extruder (the MK3S qualifies)."},
+    {q:"Is it a functional mechanical part?",a:"PETG for most cases — stronger than PLA, better layer adhesion."},
+    {q:"Everything else — prototypes, decorations, learning?",a:"PLA. It's forgiving, low-odour, and the easiest material to print successfully."},
+  ],
+  materials:[
+    {name:"PLA / PLA+",level:"Beginner",levelColor:C.green,levelBg:C.greenLt,temp:"215°C nozzle / 60°C bed",desc:"The best starting material. Stiff, low-odour, low warping. PLA+ is identical — treat it the same.",limits:"Softens above 60°C. Not for outdoor use or hot environments.",why:"PLA sticks easily to the textured sheet, doesn't warp, and is very forgiving of minor calibration errors."},
+    {name:"PETG",level:"Intermediate",levelColor:C.blue,levelBg:C.blueLt,temp:"230°C nozzle / 85°C bed",desc:"Stronger and more flexible than PLA, heat resistant to ~80°C. Good for functional parts.",limits:"Strings more than PLA. Bonds strongly to the PEI sheet — let it cool fully before removing.",why:"PETG has better layer adhesion than PLA, meaning stronger parts, but requires more precise temperature settings."},
+    {name:"TPU",level:"Intermediate",levelColor:C.blue,levelBg:C.blueLt,temp:"230°C nozzle / 50°C bed",desc:"Rubber-like flexible material. Phone cases, gaskets, grips, wheels.",limits:"Prints slowly (25–30 mm/s). Can be tricky to load — feed it carefully.",why:"TPU's flexibility makes it prone to buckling in the extruder if fed too fast. Patience pays off."},
+    {name:"ABS",level:"Advanced",levelColor:C.red,levelBg:C.redLt,temp:"255°C nozzle / 100°C bed",desc:"Heat resistant, strong, acetone-smoothable. Used in automotive and electronics housings.",limits:"Warps severely without an enclosure. Strong fumes — ventilate well. Not recommended at VHS without the enclosure.",why:"ABS shrinks as it cools, pulling corners off the bed. Enclosures maintain ambient temperature to slow that shrinkage."},
+  ],
+  storage:"All filament absorbs moisture from the air. Wet filament causes bubbling, stringing, and poor layer adhesion. Store every spool in a sealed bag or container with silica gel desiccant. If you hear crackling during printing, dry your filament at 45°C for 4–6 hours.",
+};
+
+const TASKS = [
+  {
+    id:1,title:"Prepare the Printer",goal:"Print sheet clean. Filament loaded. Printer ready.",
+    objective:"You will understand why bed preparation is critical and what a correctly loaded filament looks and feels like.",
+    time:"~5 min",needs:"A sink with soap and water, and an SD card (check the slot on the left of the LCD, or look near the printer).",
+    steps:[
+      {text:"Remove the print sheet. Lift it straight up — it is held on by magnets.",why:"The magnets hold it firmly but release straight up. Don't slide sideways — this can misalign the magnet positions."},
+      {text:"Wash the print sheet with soap and water.",why:"Dish soap removes skin oils and dust. These create invisible barriers that stop PLA from bonding — even one fingerprint in the print area can cause the first layer to peel."},
+      {text:"Rinse it completely. No soap residue.",why:"Soap residue is also a release agent. Rinse until water sheets off without bubbling."},
+      {text:"Dry with a clean cloth or let it air dry.",why:"Water droplets are fine — PLA printing temp is far above boiling. But dry it so you don't drip on electronics."},
+      {text:"Replace the sheet on the printer. It will click into place on the magnets.",why:"The textured side faces up. It should sit flat with no lifting at the edges."},
+      {text:"Hold the sheet by the edges only. Never touch the flat printing surface.",why:"Skin oil transfers immediately on contact. You won't see it, but the PLA will find it."},
+      {text:"Check filament is loaded. Look at the extruder at the top of the printer — filament should be fed in from above and disappear into the tube below.",why:"An empty extruder means no plastic will flow when printing starts. The printer won't tell you — it will just move with no plastic coming out."},
+    ],
+    note:{type:"note",title:"If filament is not loaded:",lines:["On the LCD go to Settings › Load Filament.","The printer heats the nozzle to printing temperature (~215°C for PLA).","When prompted, push the filament in from the top of the extruder.","Feed it until you see clean, consistent plastic coming from the nozzle tip.","Wipe the nozzle tip with a dry cloth to remove any ooze."]},
+    done:"Print sheet is on. Surface is clean. Filament is loaded and extruding.",
+    reflection:"Why does skin oil on the print sheet cause print failures? If you can answer this, you'll remember to handle the sheet by its edges every time.",
+    quiz:[
+      {q:"Why do you wash the print sheet with soap and water?",options:["To make the surface rougher so PLA grips better","Skin oils create an invisible barrier that stops PLA bonding to the surface","Soap helps the print release more easily after printing","To remove dust that could clog the nozzle"],correct:1,explanation:"Skin oils are a release agent — PLA can't bond through them. Even a single fingerprint in the print area can cause the first layer to peel. That's why you handle the sheet by its edges every time."},
+      {q:"What does an empty extruder cause when you start a print?",options:["An error message on the LCD","The printer moves normally but deposits no plastic","The printer refuses to start","The nozzle overheats"],correct:1,explanation:"The printer has no way to detect missing filament — it just moves as programmed with nothing coming out. You'll often only notice at layer 3 or 4 when you realise nothing is being printed."},
+    ],
+  },
+  {
+    id:2,title:"Prepare Your File in PrusaSlicer",goal:"G-code file saved to SD card, ready to print.",
+    objective:"You will understand what a slicer does, what the key settings mean, and how to read the layer preview to catch problems before printing.",
+    time:"~10 min",needs:"PrusaSlicer (already installed on the VHS 3D printing PC, or free at prusaslicer.org for your own machine), a 3D model file (.STL or .3MF — find beginner-friendly models at Printables.com), and the SD card from the printer.",
+    modelTip:{title:"Choosing a good first model",lines:["For your very first print: download a calibration cube (search 'calibration cube' on Printables.com). It's small, fast, and tells you a lot about your printer's calibration.","Avoid for your first few prints: models with large overhangs (>45°), tall thin objects that can wobble, and anything described as 'needs supports' or 'challenging'.","Green flags on Printables: 'no supports needed', 'beginner friendly', high number of makes with photos of successful prints.","Rule of thumb: if the model has parts that stick out horizontally like a shelf, it needs supports. If it builds up vertically like a tower, it probably doesn't."]},
+    steps:[
+      {text:"Open PrusaSlicer.",why:"A slicer converts your 3D model into G-code — the list of movement and temperature instructions the printer actually follows. Without slicing, the printer has nothing to do."},
+      {text:"Import your model: File › Import, or drag the .STL/.3MF into the window.",why:"The model appears on the virtual bed. You can rotate, scale, and position it before slicing. Orientation matters — see the tip below."},
+      {text:"Select the printer profile: Original Prusa i3 MK3S & MK3S+ in the top-left dropdown.",why:"This tells PrusaSlicer the exact physical dimensions and capabilities of the MK3S. Using the wrong profile generates incorrect G-code and can damage the printer."},
+      {text:"Select PLA as the filament type from the filament dropdown.",why:"PLA settings (temperature, speed, cooling) are pre-configured in this profile. Using the right profile avoids manual temperature guessing."},
+      {text:"Set layer height to 0.20 mm in the print settings dropdown.",why:"0.20 mm is the best balance of quality and speed for beginners. 0.10 mm = finer detail but 2× longer. 0.30 mm = faster but visibly rougher."},
+      {text:"Click Slice Now (bottom right of screen). Wait a few seconds.",why:"The slicer calculates every single movement, temperature change, and fan speed for your entire print. This produces the G-code file."},
+      {text:"Review the preview: use the layer slider on the right side to scroll through every layer. Look for gaps, floating sections, or missing geometry.",why:"This is your last chance to catch problems before printing. A good preview shows solid, consistent layers."},
+      {text:"Click Export G-code. Save to the SD card.",why:"The MK3S reads G-code only from the SD card — not USB, not WiFi. The file name appears on the printer's LCD exactly as you named it."},
+    ],
+    orientationTip:{title:"Model orientation matters",lines:["FDM parts are strongest in the XY plane (horizontal) and weakest in Z (vertical, between layers).","Orient your model so the stress direction runs horizontally, not vertically.","Flat bottoms print better than pointed or rounded bottoms — they give the first layer more surface area to grip.","Minimise overhangs: rotate the model so the least amount of material is unsupported."]},
+    note:{type:"caution",title:"SD card only — not USB.",lines:["The MK3S does not recognise USB drives. Always export G-code to the SD card."]},
+    done:"The SD card has a .gcode file on it. You have reviewed the layer preview and it looks correct.",
+    reflection:"What does a slicer actually produce, and why can't you just copy the .STL file to the SD card? If you can answer this, you understand the workflow.",
+    quiz:[
+      {q:"What does a slicer program actually produce?",options:["A 3D model file (.STL)","A rendered image of the finished print","G-code — a list of movement and temperature instructions for the printer","A file that PrusaSlicer sends directly to the printer over WiFi"],correct:2,explanation:"The .STL is just geometry — the printer can't read it. The slicer translates geometry into G-code: thousands of precise instructions telling the printer exactly where to move, how fast, and at what temperature."},
+      {q:"Why does using the wrong printer profile matter?",options:["It only affects print speed, nothing serious","It generates G-code with wrong dimensions and temperatures — it can damage the printer","The print will look slightly different but still work","PrusaSlicer won't let you export if the profile is wrong"],correct:1,explanation:"The printer profile encodes the physical dimensions of the MK3S — bed size, axis limits, temperature ranges. The wrong profile can command movements the printer can't safely make."},
+    ],
+  },
+  {
+    id:3,title:"Start the Print",goal:"Print is running. Filament is coming out of the nozzle.",
+    objective:"You will understand the printer's startup sequence so you know what is normal and what is a problem.",
+    time:"~3 min",
+    steps:[
+      {text:"Insert the SD card into the slot on the right side of the printer. Push until it clicks.",why:"The slot is spring-loaded. A firm click means it's seated correctly. If it falls back out, push again."},
+      {text:"On the LCD, rotate the knob to Print from SD. Press to select.",why:"The LCD menu uses rotate-to-navigate, press-to-select for everything. Get comfortable with this — you'll use it constantly."},
+      {text:"Rotate the knob to find your file by name. Press to select it.",why:"Files are listed alphabetically. If you see garbled characters, the SD card may need reformatting (FAT32 format)."},
+      {text:"Watch the LCD: the printer homes all axes first, then heats the nozzle and bed. This takes 2–4 minutes. Do not touch the printer during homing.",why:"Homing moves each axis to its end-stop switch to find the zero position. If you interrupt this, the printer loses its positional reference and may crash the nozzle into the bed."},
+      {text:"The printer purges a short line of filament at the front-left of the bed before starting. This is normal — it primes the nozzle.",why:"The purge line clears any ooze from the nozzle tip and ensures clean, consistent extrusion when the actual print begins. Don't remove it until the print is done."},
+    ],
+    done:"The printer is moving, filament is coming from the nozzle, and the first layer has begun.",
+    reflection:"What is the printer doing during the 2–4 minutes before it starts printing? Why is this step necessary?",
+    quiz:[
+      {q:"What is the printer doing during the 2–4 minutes before printing starts?",options:["Loading the G-code file from the SD card","Homing all axes and heating the nozzle and bed","Calibrating the extruder steps","Running a test extrusion"],correct:1,explanation:"Homing moves each axis to its end-stop switch to find the zero reference position. The printer also heats the nozzle and bed to target temperature. Printing only starts when both are reached."},
+      {q:"What is the purge line at the start of a print for?",options:["It's a calibration line to check Z offset","It primes the nozzle — clears ooze and ensures consistent flow before the actual print begins","It tests that the SD card file loaded correctly","It has no purpose — it's a quirk of the MK3S firmware"],correct:1,explanation:"The nozzle oozes slightly while heating. The purge line clears that ooze and establishes steady extrusion flow, so the first line of your actual print comes out cleanly."},
+    ],
+  },
+  {
+    id:4,title:"Watch the First Layer",goal:"First layer is flat, stuck, and consistent.",
+    objective:"You will be able to assess first layer quality by eye and make a Live Adjust Z correction if needed — without stopping the print.",
+    time:"~5 min",
+    warning:{type:"warning",title:"Stay within eyesight for the entire first layer.",lines:["The first layer determines whether the rest of the print succeeds. A bad first layer caught at minute 1 saves you from a failed print at hour 3.","Once the first layer is confirmed good, you can step back — but stay in the room."]},
+    whyFirstLayer:"The first layer must bond to the print sheet strongly enough to anchor the entire print. If it's too far from the sheet, lines are round and don't fuse — the print peels off mid-way. If it's too close, the nozzle scrapes and clogs. The gap is controlled by Live Adjust Z.",
+    firstLayer:{
+      good:["Lines are pressed flat — slightly squished, not round","Adjacent lines just touch each other","No gaps or spaces between lines","Consistent width throughout — no thin spots","Plastic is not moving or curling up"],
+      bad:["Lines are round like spaghetti — nozzle is too far from bed","Gaps between lines — same cause, increase Z offset","Plastic is scraping or grinding — nozzle is too close","Lines are inconsistent width — possible partial clog or wet filament","Edges curling up — bed not clean, or bed temp too low"],
+    },
+    liveZ:{
+      title:"Adjusting Live Adjust Z — do this while the print is running",
+      why:"Live Adjust Z moves the nozzle up or down relative to the bed without stopping the print. A negative number moves the nozzle closer (more squish). The goal is a value where lines are clearly flattened and fused.",
+      steps:["On the LCD, rotate the knob to find Live Adjust Z and press.","Turn knob LEFT (counter-clockwise) to decrease the Z value — moves nozzle closer to the sheet.","Turn knob RIGHT (clockwise) to increase the Z value — moves nozzle further away.","Adjust in small increments: 0.05 mm at a time. Watch the lines after each adjustment.","Target: lines that are clearly flattened and just touching each other.","The printer saves this value — you usually only need to calibrate once."],
+      note:"If it still looks wrong after several adjustments: stop the print (press knob › Stop Print), clean the bed with soap and water, and restart. Post a photo in #3d_printing on Slack if you're unsure.",
+    },
+    cancelDecision:{
+      title:"Should I cancel this print?",
+      items:[
+        {situation:"First layer looks bad and Live Adjust Z didn't fix it",action:"Cancel. Clean bed, restart.",cancel:true},
+        {situation:"First layer is slightly imperfect but flat and stuck",action:"Continue — it's probably fine.",cancel:false},
+        {situation:"Plastic is peeling off the sheet",action:"Cancel. Don't let it reach the heating components.",cancel:true},
+        {situation:"Minor stringing between parts",action:"Continue. Adjust retraction for next print.",cancel:false},
+        {situation:"Layer shifted — print is visibly offset",action:"Cancel. Check belt tension before reprinting.",cancel:true},
+        {situation:"A small blob or imperfection on one wall",action:"Continue — likely cosmetic only.",cancel:false},
+      ],
+    },
+    done:"The first layer is flat, stuck, consistent, and the print is progressing normally.",
+    after:"Step back, but stay nearby. Check every 10–15 minutes. Set a timer.",
+    reflection:"What does a negative Live Adjust Z value do? Why does a first layer that looks like spaghetti indicate the nozzle is too far from the bed, not too close?",
+    quiz:[
+      {q:"Your first layer lines look round, like spaghetti. What does this mean?",options:["The nozzle is too close to the bed — increase Live Adjust Z","The nozzle is too far from the bed — decrease Live Adjust Z (more negative)","The filament is wet","The bed temperature is too low"],correct:1,explanation:"Round lines mean the nozzle is depositing plastic too far above the surface — the lines don't get squished flat. Decrease Live Adjust Z (turn the knob counter-clockwise, more negative) to bring the nozzle closer."},
+      {q:"The first layer looks slightly imperfect in one corner but is otherwise flat and stuck. What should you do?",options:["Cancel immediately and re-level the bed","Continue — a minor imperfection in one area is usually fine","Increase the bed temperature by 20°C","Pause and wash the bed"],correct:1,explanation:"Not every print needs to be perfect from layer one. If the layer is broadly flat and stuck, the print will usually succeed. Save cancels for when plastic is peeling, shifting, or not sticking at all."},
+    ],
+  },
+  {
+    id:5,title:"After the Print",goal:"Print safely removed. Printer cleaned and off.",
+    objective:"You will understand how to remove prints without damaging the sheet, why the cooldown sequence matters, and what heat creep is.",
+    time:"~10 min",
+    celebrate:"Your print is done. Take a moment — you just turned a digital file into a physical object. Now let's finish correctly so the next person (or your next print) starts clean.",
+    steps:[
+      {text:"Wait for the LCD to show 'Print finished'. Do not remove the print early.",why:"The nozzle is still at printing temperature (~215°C). Touching it or the heater block causes serious burns."},
+      {text:"Wait 5–10 minutes for the sheet to cool to room temperature.",why:"PLA releases from the textured sheet as it cools and contracts. Removing it hot can tear the print or damage the sheet surface."},
+      {text:"Remove the sheet by lifting straight up.",why:"Straight up releases the magnets cleanly. Sliding sideways can scratch the PEI surface."},
+      {text:"Flex the sheet gently — bend it slightly both ways. The print will pop off cleanly.",why:"The spring steel flexes; PLA doesn't. The differential stress breaks the bond. No tools needed or wanted."},
+      {text:"Do not use a scraper, knife, or tools to remove the print.",why:"These scratch the PEI coating. Once scratched, prints no longer release cleanly. The sheet costs ~€20 to replace."},
+      {text:"Remove support structures if present. Snap with fingers or use flush cutters.",why:"Supports are designed to break away cleanly. Flush cutters are ideal for hard-to-reach supports."},
+      {text:"Unload the filament: LCD › Settings › Unload Filament. Guide it gently as it retracts.",why:"Never yank the filament out cold — this can pull melted plastic into the cold zone and cause a clog. Always use the unload menu so the printer heats and retracts correctly."},
+      {text:"Store filament immediately in a sealed bag with silica gel.",why:"PLA absorbs moisture in as little as a few hours in humid environments. Wet filament prints poorly: expect bubbling, stringing, and weak layers."},
+      {text:"Run the cooldown sequence: LCD › Settings › Temperature › Cooldown.",why:"See the warning below."},
+      {text:"Wait until the LCD shows nozzle temperature below 40°C, then turn off the power switch.",why:"Below 40°C the PTFE tube and hotend internals are safe. Above this, residual heat continues softening filament in places it shouldn't be."},
+    ],
+    warning:{type:"warning",title:"Never turn off the printer without running Cooldown first.",lines:["Heat creep: if you power off while the nozzle is hot, residual heat travels up the heat break into the cold zone. Filament softens and expands where it shouldn't, creating a jam that requires partial disassembly to clear.","This is the single most common source of hard-to-fix clogs. It takes 2 minutes to avoid and 30 minutes to fix.","Always: Settings › Temperature › Cooldown › wait for <40°C › power off."]},
+    done:"Print removed. Filament stored. Printer cooled below 40°C and off.",
+    reflection:"What is heat creep, and why does powering off while hot cause it? If you understand this, you will never skip the cooldown step.",
+    quiz:[
+      {q:"What is heat creep, and why does it matter?",options:["The bed slowly warping upward during a long print","Residual heat travelling up the hotend after power-off, melting filament in the cold zone and causing a hard-to-fix clog","The nozzle temperature gradually rising above the set point","PLA softening and deforming in a warm room after printing"],correct:1,explanation:"If you power off while the nozzle is hot, heat continues travelling upward into the cold zone. Filament softens and expands where it shouldn't, jamming the entire path. It takes 30+ minutes to fix. The Cooldown sequence prevents it entirely."},
+      {q:"Why do you flex the print sheet to remove the print, rather than using a scraper?",options:["Flexing is faster","Scrapers are too expensive to keep at VHS","Scrapers scratch the PEI coating — once scratched, prints no longer release cleanly","The sheet is too thin to flex safely"],correct:2,explanation:"The spring steel flexes; PLA doesn't. That differential stress cleanly breaks the bond. Scrapers gouge the PEI surface, creating low spots where prints stick permanently. The sheet costs around €20 to replace."},
+    ],
+  },
+];
+
+const NEXT_STEPS = {
+  title:"What to Do After Your First Print",subtitle:"You're not done learning — you're just getting started",
+  items:[
+    {title:"Print a calibration cube",desc:"Search 'XYZ calibration cube' on Printables. Measure it with calipers — X, Y, Z should all be within 0.2 mm of 20 mm. If not, your E-steps or flow rate need calibrating.",icon:"📐"},
+    {title:"Try PETG",desc:"Once PLA is reliable, try PETG for a functional part. It requires higher temperatures and different bed prep. The results are worth it.",icon:"🔧"},
+    {title:"Design your own models",desc:"Fusion 360 is free for personal use and is the industry standard. TinkerCAD is browser-based and perfect for starting. Blender is free and ideal for organic/artistic shapes.",icon:"✏️"},
+    {title:"Learn PrusaSlicer fully",desc:"You've used 4 settings. PrusaSlicer has dozens. The Prusa Knowledge Base (help.prusa3d.com) has detailed guides on every setting. Most valuable next: variable layer height, modifier meshes, custom supports.",icon:"🖥️"},
+    {title:"Join the VHS 3D printing community",desc:"Post your prints in #3d_printing on Slack. Ask questions — the community has thousands of hours of collective experience. Failed prints are welcome.",icon:"👥"},
+  ],
+};
+
+const READINESS = [
+  {id:"r1",taskId:1,task:"Task 1",text:"I can explain why skin oil on the print sheet causes print failures."},
+  {id:"r2",taskId:1,task:"Task 1",text:"I know what a correctly loaded filament looks like at the extruder."},
+  {id:"r3",taskId:2,task:"Task 2",text:"I understand what G-code is and why the .STL file alone isn't enough."},
+  {id:"r4",taskId:2,task:"Task 2",text:"I know how to read the layer preview and what to look for."},
+  {id:"r5",taskId:3,task:"Task 3",text:"I know what the printer is doing before it starts printing."},
+  {id:"r6",taskId:4,task:"Task 4",text:"I can tell a good first layer from a bad one by looking at it."},
+  {id:"r7",taskId:4,task:"Task 4",text:"I know which way to turn the knob in Live Adjust Z to bring the nozzle closer."},
+  {id:"r8",taskId:5,task:"Task 5",text:"I know what heat creep is and how to prevent it."},
+  {id:"r9",taskId:5,task:"Task 5",text:"I know why I flex the sheet to remove prints instead of using a scraper."},
+  {id:"r10",taskId:null,task:"General",text:"I must stay within eyesight of my print for the entire first layer."},
+];
+
+const PRINTER_IMG = "data:image/png;base64,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3nc031mCd3XRnzjBWH9KYLNe3p28O13wQAOxZno7D+5u1MAThtYOvPHZco1f3W1X96JaE4Ec8BU0bcPKqdkYJPIqSwe6cFaOzHMT3ZP0bzSUusLdLFHFI4PdgPGQctI4rZ2jOgG+antFZdJtQ0UFFDI9kzY43Oe4AbR2c8Otau0Gx41XRukf4IkADcc+eV3l0I0UlLoOAyBgdPI5+G8sch+xTM4qpNpiXL/Rh0eabvejIam42WKorWmd8jpi5uWt6ueAcclojVBi9n61lO0xQMmcyJh/ktBIAXeeqrGaC4zQvxKyQbbXY5ZPWuINfWmrh1jeGMppnsFY/DhEcHiV4rgXEram+19HWia2jzmZjv0xHueq3ujGts620Yz27R8OvVhG9LLnlxIwMMPYqxgjMg3m0Rnjjmq0W2sEm33jK7HUYjxUsafvM9Xu6WhuTpXkkRMpXOPbwAXr6a1LTiJcDU2epp05pifT+6heBg55eVSLZk7zH4sHgs0snRdrS7yCOm0lqiulJ4NFC6GP43O4LKtR9APSrYbJFdZ9JOmpuumoZWzzR/8AeaOPoys2OrTl073C0FVF0Kb2oPuc1znMP/dGB+0Fb9Wqu5Us9wsnQtaaO6W2e21TpJpHU07Nl7QXnGR1cMLaqie6oiIoBMIiDxF6inKMIQokRQkREQEREBERAXOHdlX6rstx0fHSOH8NrNzK09bM8f2ro9csd2+d5q/o8pvGrif6QUx3gWHpYukk/Q9UWypml3tNXQtjbxxja459Ax8a57q2kMyeAW2+l3UVDUQXOzQybNRHNEZYgesE8/KtQVJ2snGAr2nM5TTso4uLz2LYvQINrpRtpfjgyU8f8m5a6gPunUeK2X3Pnh9KFFyOKecn5Jypac1ZK907poP9XcoOQQwBbO7neL/8d3aT8pVTD/c/81rDppcDrycDgACcfGVtvudoSeiurOAM1s3Ht8GMfvTS/chbVnq6ltrdi307OyJo+pVKl042YWDsaApihgEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQEREBERAREQERDyQap7p69+xnRnNQscWy3SZlNw8XOX/UPrVn7kCzCl6P6y+yMxNda1zg49cUfgt/esP7sm6VElyt9thbJu6SmdM5wHDeyZDR58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";
+
+// ── Printer diagram ───────────────────────────────────────────────────────────
+const DIAGRAM_LABELS = [
+  {id:"filament",x:72,y:3,title:"Filament",desc:"The plastic material fed into the printer. PLA is recommended for beginners."},
+  {id:"spool",x:72,y:10,title:"Filament Holder",desc:"Holds the spool so it unwinds freely as the extruder pulls filament through."},
+  {id:"frame",x:8,y:22,title:"Printer Frame",desc:"The rigid structural skeleton. Keeps all axes aligned and square."},
+  {id:"zaxis",x:8,y:28,title:"Z-Axis",desc:"Moves the print bed up and down. Each increment = one layer height."},
+  {id:"motherboard",x:8,y:38,title:"Einsy RAMBo Board",desc:"The printer's brain. Controls all motors, heaters, fans, and sensors."},
+  {id:"extruder",x:8,y:44,title:"Extruder",desc:"The motor that grips and drives filament into the hotend."},
+  {id:"xaxis",x:72,y:44,title:"X-Axis",desc:"Moves the hotend left and right across the print."},
+  {id:"hotend",x:38,y:52,title:"Hotend & Nozzle",desc:"Melts filament to ~215°C. The nozzle is 0.4 mm wide — about 4× the width of a human hair."},
+  {id:"heatbed",x:60,y:62,title:"Heatbed",desc:"Heated to 60°C for PLA. Helps the first layer bond. The spring-steel PEI sheet sits on top."},
+  {id:"yaxis",x:8,y:72,title:"Y-Axis",desc:"Moves the print bed toward and away from you during printing."},
+  {id:"lcd",x:62,y:88,title:"LCD Panel & Knob",desc:"Your control interface. Rotate to navigate, press to select."},
+  {id:"sdslot",x:8,y:88,title:"SD Card Slot",desc:"Insert your SD card here. The MK3S prints only from SD — not USB."},
+];
+
+function PrinterDiagram() {
+  return (
+    <div style={{marginBottom:16,borderRadius:8,overflow:"hidden",border:"1px solid #E8E8E8",background:"#fff"}}>
+      <img src={PRINTER_IMG} alt="Prusa MK3S labelled diagram" style={{width:"100%",display:"block"}} />
+    </div>
+  );
+}
+
+// ── Shared components ─────────────────────────────────────────────────────────
+function Callout({type,title,lines=[],children}) {
+  const cfg = {
+    danger:{bar:C.red,bg:C.redLt,label:"DANGER — "},
+    warning:{bar:C.amber,bg:C.amberLt,label:"WARNING — "},
+    caution:{bar:C.gold,bg:C.goldLt,label:"CAUTION — "},
+    note:{bar:C.blue,bg:C.blueLt,label:"NOTE — "},
+    done:{bar:C.green,bg:C.greenLt,label:"✓ DONE WHEN — "},
+    why:{bar:C.teal,bg:C.tealLt,label:"WHY THIS MATTERS — "},
+    reflect:{bar:"#7B4FE9",bg:"#F5F0FF",label:"REFLECT — "},
+    objective:{bar:"#1A6B5A",bg:"#F0FAF7",label:"LEARNING OBJECTIVE — "},
+    tip:{bar:"#5B6AF0",bg:"#F0F1FF",label:"TIP — "},
+  };
+  const s = cfg[type]||cfg.note;
+  return (
+    <div style={{borderLeft:`4px solid ${s.bar}`,background:s.bg,borderRadius:"0 6px 6px 0",padding:"12px 16px",margin:"12px 0"}}>
+      <div style={{fontWeight:700,color:s.bar,fontSize:"0.78rem",letterSpacing:"0.05em",marginBottom:lines.length||children?5:0}}>{s.label}{title}</div>
+      {lines.map((l,i)=><div key={i} style={{fontSize:"0.85rem",color:"#333",marginTop:4,lineHeight:1.6,fontFamily:"'DM Sans', sans-serif"}}>{l}</div>)}
+      {children}
+    </div>
+  );
+}
+
+function Step({text,why,done,onToggle,num,showWhy}) {
+  const [expanded,setExpanded] = useState(false);
+  return (
+    <div style={{borderBottom:`1px solid ${C.rule}`}}>
+      <button onClick={onToggle} style={{display:"flex",alignItems:"flex-start",gap:12,width:"100%",background:"none",border:"none",cursor:"pointer",padding:"10px 0 8px",textAlign:"left"}}>
+        <div style={{width:22,height:22,borderRadius:4,border:`2px solid ${done?C.blue:"#CCCCCC"}`,background:done?C.blue:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,transition:"all 0.15s"}}>
+          {done&&<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        </div>
+        <span style={{fontSize:"0.85rem",color:done?C.subtle:C.text,textDecoration:done?"line-through":"none",lineHeight:1.55,fontFamily:"'DM Sans', sans-serif",flex:1}}>
+          <span style={{color:done?"#bbb":C.blue,fontWeight:700,marginRight:6}}>{num}.</span>{text}
+        </span>
+      </button>
+      {why&&showWhy&&(
+        <div>
+          <button onClick={()=>setExpanded(e=>!e)} style={{background:"none",border:"none",cursor:"pointer",fontSize:"0.72rem",color:C.teal,fontWeight:700,padding:"0 0 6px 34px",letterSpacing:"0.05em",display:"flex",alignItems:"center",gap:4}}>
+            <span style={{display:"inline-block",transform:expanded?"rotate(90deg)":"none",transition:"transform 0.15s"}}>▶</span> WHY?
+          </button>
+          {expanded&&<div style={{marginLeft:34,marginBottom:8,padding:"8px 12px",background:C.tealLt,borderLeft:`3px solid ${C.teal}`,borderRadius:"0 4px 4px 0",fontSize:"0.82rem",color:"#4A7A6E",lineHeight:1.6,fontFamily:"'DM Sans', sans-serif"}}>{why}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Quiz({questions,taskId,answers,onAnswer}) {
+  return (
+    <div style={{marginTop:8}}>
+      {questions.map((q,qi)=>{
+        const key=`${taskId}-${qi}`;
+        const answered=answers[key]!==undefined;
+        const selected=answers[key];
+        const correct=selected===q.correct;
+        return (
+          <div key={qi} style={{background:"#fff",border:`1px solid ${answered?(correct?"#A8D5B5":"#F0B8B2"):"#E8E8E8"}`,borderRadius:8,padding:"12px 14px",marginBottom:10}}>
+            <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:600,fontSize:"0.87rem",color:"#1B2A3B",marginBottom:10,lineHeight:1.5}}>{q.q}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {q.options.map((opt,oi)=>{
+                let bg="#F7F8FA",border="#E0E0E0",color="#333";
+                if(answered){
+                  if(oi===q.correct){bg="#F2FAF5";border="#1E6B3C";color="#1E6B3C";}
+                  else if(oi===selected){bg="#FDF3F2";border="#C0392B";color="#C0392B";}
+                  else{bg="#F7F8FA";border="#E0E0E0";color="#AAA";}
+                }
+                return (
+                  <button key={oi} onClick={()=>!answered&&onAnswer(key,oi)}
+                    style={{background:bg,border:`1px solid ${border}`,borderRadius:6,padding:"8px 12px",cursor:answered?"default":"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:8,transition:"all 0.15s"}}>
+                    <span style={{width:18,height:18,borderRadius:"50%",border:`1px solid ${border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.6rem",flexShrink:0,color}}>
+                      {answered&&oi===q.correct?"✓":answered&&oi===selected?"✗":String.fromCharCode(65+oi)}
+                    </span>
+                    <span style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.83rem",color,lineHeight:1.45}}>{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {answered&&(
+              <div style={{marginTop:10,padding:"8px 10px",background:correct?"#F2FAF5":"#FDF3F2",borderLeft:`3px solid ${correct?"#1E6B3C":"#C0392B"}`,borderRadius:"0 4px 4px 0",fontSize:"0.8rem",color:"#333",fontFamily:"'DM Sans', sans-serif",lineHeight:1.55}}>
+                <span style={{fontWeight:700,color:correct?"#1E6B3C":"#C0392B"}}>{correct?"Correct. ":"Not quite. "}</span>{q.explanation}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── App ───────────────────────────────────────────────────────────────────────
+function App() {
+  const [view,setView]         = useState("home");
+  const [activeTask,setActiveTask] = useState(null);
+  const [checks,setChecks]     = useState({});
+  const [taskDone,setTaskDone] = useState({});
+  const [openTrouble,setOpenTrouble] = useState(null);
+  const [liveZOpen,setLiveZOpen] = useState(false);
+  const [cancelOpen,setCancelOpen] = useState(false);
+  const [showWhy,setShowWhy]   = useState(true);
+  const [quizAnswers,setQuizAnswers] = useState({});
+  const [readiness,setReadiness] = useState({});
+  const topRef = useRef(null);
+
+  function scrollTop(){topRef.current?.scrollIntoView({behavior:"smooth"});}
+  function toggleCheck(key){setChecks(p=>({...p,[key]:!p[key]}));}
+  const task = TASKS.find(t=>t.id===activeTask);
+  const completedCount = Object.values(taskDone).filter(Boolean).length;
+  const allTasksDone = TASKS.every(t=>taskDone[t.id]);
+  const taskProgress = (t)=>{const steps=t.steps||[];const done=steps.filter((_,i)=>checks[`${t.id}-${i}`]).length;return{done,total:steps.length,pct:steps.length?Math.round((done/steps.length)*100):0};};
+  function goTask(id){setActiveTask(id);setView("task");setLiveZOpen(false);setCancelOpen(false);scrollTop();}
+  function goView(v){setView(v);scrollTop();}
+  function goHome(){setView("home");scrollTop();}
+
+  const SectionLabel = ({text})=>(
+    <div style={{fontSize:"0.68rem",color:C.subtle,fontWeight:700,letterSpacing:"0.12em",marginTop:24,marginBottom:8}}>{text}</div>
+  );
+
+  const TopBar = ()=>(
+    <div style={{background:C.navy,position:"sticky",top:0,zIndex:50,padding:"0 16px"}}>
+      <div style={{maxWidth:660,margin:"0 auto",display:"flex",alignItems:"center",height:52,gap:12}}>
+        <button onClick={goHome} style={{background:"none",border:"none",cursor:"pointer",display:"flex",alignItems:"center",gap:8}}>
+          <div style={{width:6,height:28,background:C.blueMd,borderRadius:3}}/>
+          <span style={{color:"#fff",fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"0.9rem"}}>3D Printing</span>
+          <span style={{color:"#A8C8E8",fontFamily:"'DM Sans', sans-serif",fontSize:"0.9rem"}}>User Guide</span>
+        </button>
+        <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+          <button onClick={()=>goView("emergency")} style={{background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:6,width:32,height:32,color:"#fff",cursor:"pointer",fontSize:"1rem"}}>⚠</button>
+        </div>
+      </div>
+      {completedCount>0&&(
+        <div style={{maxWidth:660,margin:"0 auto",paddingBottom:7}}>
+          <div style={{height:2,background:"rgba(255,255,255,0.1)",borderRadius:1}}>
+            <div style={{width:`${(completedCount/TASKS.length)*100}%`,height:"100%",background:C.blueMd,borderRadius:1,transition:"width 0.4s"}}/>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  const Page = ({children})=>(
+    <div style={{minHeight:"100vh",background:"#FAFAFA",fontFamily:"'DM Mono', 'Courier New', monospace"}}>
+      <style>{`* { box-sizing: border-box; margin: 0; padding: 0; } body { background: #FAFAFA; } ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #DDD; border-radius: 2px; } button { font-family: inherit; } .tap:active { opacity: 0.75; transform: scale(0.99); }`}</style>
+      <div ref={topRef}/>
+      <TopBar/>
+      <div style={{maxWidth:660,margin:"0 auto",padding:"0 16px 80px"}}>{children}</div>
+    </div>
+  );
+
+  if(view==="emergency") return (
+    <Page>
+      <div style={{paddingTop:24}}>
+        <div style={{background:C.red,borderRadius:10,padding:20,marginBottom:16,color:"#fff"}}>
+          <div style={{fontSize:"1.6rem",marginBottom:8}}>🛑</div>
+          <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"1.15rem",marginBottom:4}}>STOP THE PRINT IMMEDIATELY</div>
+          <div style={{fontSize:"0.85rem",opacity:0.85}}>If you see or smell any of these:</div>
+        </div>
+        {["Smoke or a burning smell","Filament tangled around the extruder","The nozzle scraping or grinding into the print","An error message on the LCD screen"].map((t,i)=>(
+          <div key={i} style={{display:"flex",gap:12,padding:"12px 0",borderBottom:`1px solid ${C.rule}`,alignItems:"center"}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:C.red,flexShrink:0}}/>
+            <span style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.9rem",color:C.text}}>{t}</span>
+          </div>
+        ))}
+        <div style={{fontSize:"0.72rem",color:C.red,fontWeight:700,letterSpacing:"0.08em",marginTop:16,marginBottom:10}}>HOW TO STOP</div>
+        {["Press the LCD knob once to pause.","Turn the knob and select Stop Print to cancel completely.","If unresponsive: flip the power switch on the back right of the printer."].map((s,i)=>(
+          <div key={i} style={{display:"flex",gap:12,marginBottom:12,alignItems:"flex-start"}}>
+            <div style={{width:24,height:24,borderRadius:"50%",background:C.red,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.75rem",fontWeight:700,flexShrink:0,marginTop:1}}>{i+1}</div>
+            <span style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.88rem",color:C.text,lineHeight:1.5,paddingTop:3}}>{s}</span>
+          </div>
+        ))}
+        <div style={{marginTop:12,background:C.grey,borderRadius:8,padding:"12px 14px",fontFamily:"'DM Sans', sans-serif",fontSize:"0.83rem",color:C.muted,lineHeight:1.55}}>
+          <strong>If something breaks:</strong> You are not in trouble. Leave a note on the printer and post in <strong>#3d_printing</strong> on Slack. Include a photo, filament type, and settings used.
+        </div>
+      </div>
+    </Page>
+  );
+
+  if(view==="howItWorks") return (
+    <Page>
+      <div style={{paddingTop:24}}>
+        <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"1.3rem",color:C.navy,marginBottom:2}}>{HOW_IT_WORKS.title}</div>
+        <div style={{fontSize:"0.82rem",color:C.muted,marginBottom:16,fontFamily:"'DM Sans', sans-serif"}}>{HOW_IT_WORKS.subtitle}</div>
+        <Callout type="objective" title={HOW_IT_WORKS.objective}/>
+        <SectionLabel text="PRINTER DIAGRAM"/>
+        <PrinterDiagram/>
+        <div style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"14px",marginBottom:12}}>
+          <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:600,fontSize:"0.9rem",color:C.navy,marginBottom:6}}>The Core Concept</div>
+          <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.88rem",color:C.text,lineHeight:1.65}}>{HOW_IT_WORKS.concept}</div>
+        </div>
+        <Callout type="tip" title="The filament path" lines={[HOW_IT_WORKS.filamentPath,"Picture this path as you work through the tasks. Every step connects to part of this chain."]}/>
+        <SectionLabel text="KEY COMPONENTS"/>
+        {HOW_IT_WORKS.parts.map((p,i)=>(
+          <div key={i} style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"12px 14px",marginBottom:8}}>
+            <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"0.88rem",color:C.navy,marginBottom:4}}>{p.name}</div>
+            <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.83rem",color:C.text,lineHeight:1.6,marginBottom:6}}>{p.desc}</div>
+            <div style={{borderLeft:`3px solid ${C.teal}`,paddingLeft:8,fontSize:"0.78rem",color:C.teal,fontFamily:"'DM Sans', sans-serif",lineHeight:1.5}}>{p.why}</div>
+          </div>
+        ))}
+        <SectionLabel text="LAYERS"/>
+        <div style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"12px 14px",marginBottom:12,fontFamily:"'DM Sans', sans-serif",fontSize:"0.85rem",color:C.text,lineHeight:1.65}}>{HOW_IT_WORKS.layers}</div>
+        <Callout type="reflect" title={HOW_IT_WORKS.reflection}/>
+        <button onClick={goHome} style={{marginTop:16,background:C.blue,border:"none",borderRadius:8,padding:"10px 20px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:"0.88rem",fontFamily:"'DM Sans', sans-serif"}}>Ready — back to tasks →</button>
+      </div>
+    </Page>
+  );
+
+  if(view==="filament") return (
+    <Page>
+      <div style={{paddingTop:24}}>
+        <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"1.3rem",color:C.navy,marginBottom:2}}>{FILAMENT_GUIDE.title}</div>
+        <div style={{fontSize:"0.82rem",color:C.muted,marginBottom:12,fontFamily:"'DM Sans', sans-serif"}}>{FILAMENT_GUIDE.subtitle}</div>
+        <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.85rem",color:C.text,lineHeight:1.65,marginBottom:12}}>{FILAMENT_GUIDE.intro}</div>
+        <SectionLabel text="DECISION FRAMEWORK"/>
+        {FILAMENT_GUIDE.decision.map((d,i)=>(
+          <div key={i} style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"10px 14px",marginBottom:8,display:"flex",gap:10,alignItems:"flex-start"}}>
+            <span style={{color:C.blue,fontWeight:700,fontSize:"0.8rem",flexShrink:0,paddingTop:2}}>IF</span>
+            <div>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.85rem",fontWeight:600,color:C.text,marginBottom:3}}>{d.q}</div>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.82rem",color:C.muted,lineHeight:1.5}}>{d.a}</div>
+            </div>
+          </div>
+        ))}
+        <SectionLabel text="MATERIAL DETAILS"/>
+        {FILAMENT_GUIDE.materials.map((m,i)=>(
+          <div key={i} style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"12px 14px",marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"0.95rem",color:C.navy}}>{m.name}</span>
+              <span style={{fontSize:"0.7rem",fontWeight:700,color:m.levelColor,background:m.levelBg,padding:"2px 8px",borderRadius:10}}>{m.level}</span>
+            </div>
+            <div style={{fontSize:"0.72rem",color:C.blue,fontWeight:600,marginBottom:4}}>{m.temp}</div>
+            <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.83rem",color:C.text,lineHeight:1.6,marginBottom:6}}>{m.desc}</div>
+            <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.78rem",color:C.red,lineHeight:1.5,marginBottom:6}}>⚠ {m.limits}</div>
+            <div style={{borderLeft:`3px solid ${C.teal}`,paddingLeft:8,fontSize:"0.78rem",color:C.teal,fontFamily:"'DM Sans', sans-serif",lineHeight:1.5}}>{m.why}</div>
+          </div>
+        ))}
+        <SectionLabel text="STORAGE"/>
+        <Callout type="warning" title="All filament absorbs moisture." lines={[FILAMENT_GUIDE.storage]}/>
+      </div>
+    </Page>
+  );
+
+  if(view==="nextSteps") return (
+    <Page>
+      <div style={{paddingTop:24}}>
+        <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"1.3rem",color:C.navy,marginBottom:2}}>{NEXT_STEPS.title}</div>
+        <div style={{fontSize:"0.82rem",color:C.muted,marginBottom:16,fontFamily:"'DM Sans', sans-serif"}}>{NEXT_STEPS.subtitle}</div>
+        {NEXT_STEPS.items.map((item,i)=>(
+          <div key={i} style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"14px",marginBottom:10,display:"flex",gap:12}}>
+            <div style={{fontSize:"1.5rem",flexShrink:0}}>{item.icon}</div>
+            <div>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"0.9rem",color:C.navy,marginBottom:4}}>{item.title}</div>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.82rem",color:C.muted,lineHeight:1.6}}>{item.desc}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Page>
+  );
+
+  if(view==="readiness") {
+    const ticked=Object.values(readiness).filter(Boolean).length;
+    const allTicked=ticked===READINESS.length;
+    return (
+      <Page>
+        <div style={{paddingTop:24}}>
+          <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"1.3rem",color:C.navy,marginBottom:4}}>Am I Ready to Print?</div>
+          <div style={{fontSize:"0.82rem",color:C.muted,marginBottom:6,fontFamily:"'DM Sans', sans-serif",lineHeight:1.55}}>Tick everything you can honestly say yes to. If something gives you pause, tap <strong style={{color:C.blue}}>REVIEW</strong> to go straight back to that task.</div>
+          {ticked>0&&<div style={{fontSize:"0.75rem",color:C.blue,marginBottom:16,fontFamily:"'DM Sans', sans-serif"}}>{ticked}/{READINESS.length} ticked</div>}
+          {READINESS.map((item)=>{
+            const done=!!readiness[item.id];
+            return (
+              <div key={item.id} style={{display:"flex",gap:8,marginBottom:7,alignItems:"stretch"}}>
+                <button className="tap" onClick={()=>setReadiness(p=>({...p,[item.id]:!p[item.id]}))}
+                  style={{display:"flex",alignItems:"flex-start",gap:12,flex:1,background:done?C.greenLt:"#fff",border:`1px solid ${done?"#A8D5B5":"#E8E8E8"}`,borderRadius:8,padding:"12px 14px",cursor:"pointer",textAlign:"left",transition:"all 0.15s"}}>
+                  <div style={{width:22,height:22,borderRadius:4,border:`2px solid ${done?C.green:"#CCC"}`,background:done?C.green:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:1,transition:"all 0.15s"}}>
+                    {done&&<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.85rem",color:done?C.subtle:C.text,textDecoration:done?"line-through":"none",lineHeight:1.55}}>{item.text}</div>
+                  </div>
+                </button>
+                {item.taskId&&(
+                  <button className="tap" onClick={()=>goTask(item.taskId)}
+                    style={{background:C.blueLt,border:"1px solid #D0E8F5",borderRadius:8,padding:"10px 10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",flexShrink:0,gap:2,minWidth:52}}>
+                    <span style={{fontSize:"0.6rem",color:C.blue,fontWeight:700,letterSpacing:"0.05em"}}>REVIEW</span>
+                    <span style={{fontSize:"0.75rem",color:C.blue,fontWeight:700}}>T{item.taskId}</span>
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {allTicked&&(
+            <div style={{marginTop:8,background:C.greenLt,border:"1px solid #A8D5B5",borderLeft:`4px solid ${C.green}`,borderRadius:"0 8px 8px 0",padding:"14px 16px"}}>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,color:C.green,fontSize:"1rem",marginBottom:4}}>✓ You're ready to print.</div>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.83rem",color:"#2A5A3A",lineHeight:1.6}}>You've worked through the training, answered the knowledge checks, and can account for everything on this list. Go make something.</div>
+            </div>
+          )}
+          {!allTicked&&ticked>0&&(
+            <div style={{marginTop:8,background:C.blueLt,borderLeft:`4px solid ${C.blue}`,borderRadius:"0 6px 6px 0",padding:"10px 14px",fontFamily:"'DM Sans', sans-serif",fontSize:"0.82rem",color:"#333",lineHeight:1.55}}>
+              {READINESS.length-ticked} item{READINESS.length-ticked>1?"s":""} left. Review the task shown next to anything you're unsure about.
+            </div>
+          )}
+          <button className="tap" onClick={goHome} style={{marginTop:16,background:"none",border:"1px solid #E0E0E0",borderRadius:8,padding:"10px 12px",color:C.subtle,cursor:"pointer",fontSize:"0.88rem",fontFamily:"'DM Sans', sans-serif"}}>← Home</button>
+        </div>
+      </Page>
+    );
+  }
+
+  if(view==="knowledge") {
+    const allQuestions=TASKS.flatMap(t=>(t.quiz||[]).map((q,qi)=>({...q,taskId:t.id,taskTitle:t.title,key:`${t.id}-${qi}`})));
+    const answered=allQuestions.filter(q=>quizAnswers[q.key]!==undefined).length;
+    const correct=allQuestions.filter(q=>quizAnswers[q.key]===q.correct).length;
+    return (
+      <Page>
+        <div style={{paddingTop:24}}>
+          <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"1.3rem",color:C.navy,marginBottom:4}}>Knowledge Check</div>
+          <div style={{fontSize:"0.82rem",color:C.muted,marginBottom:6,fontFamily:"'DM Sans', sans-serif",lineHeight:1.55}}>10 questions across all 5 tasks. Wrong answers show an explanation — it's a learning tool, not a test. Retake any question freely.</div>
+          {answered>0&&<div style={{fontSize:"0.75rem",color:C.blue,marginBottom:16,fontFamily:"'DM Sans', sans-serif"}}>{answered}/{allQuestions.length} answered · {correct} correct</div>}
+          {TASKS.map(t=>{
+            const tQuestions=allQuestions.filter(q=>q.taskId===t.id);
+            return (
+              <div key={t.id} style={{marginBottom:20}}>
+                <div style={{fontSize:"0.68rem",color:C.blue,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>TASK {t.id} — {t.title.toUpperCase()}</div>
+                <Quiz questions={tQuestions} taskId={t.id} answers={quizAnswers} onAnswer={(key,val)=>setQuizAnswers(p=>({...p,[key]:val}))}/>
+              </div>
+            );
+          })}
+          <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+            <button className="tap" onClick={()=>setQuizAnswers({})} style={{background:"none",border:"1px solid #E0E0E0",borderRadius:8,padding:"10px 14px",color:C.subtle,cursor:"pointer",fontSize:"0.83rem",fontFamily:"'DM Sans', sans-serif"}}>Reset answers</button>
+            <button className="tap" onClick={goHome} style={{background:"none",border:"1px solid #E0E0E0",borderRadius:8,padding:"10px 12px",color:C.subtle,cursor:"pointer",fontSize:"0.88rem",fontFamily:"'DM Sans', sans-serif"}}>← Home</button>
+          </div>
+        </div>
+      </Page>
+    );
+  }
+
+  if(view==="task"&&task) {
+    const prog=taskProgress(task);
+    return (
+      <Page>
+        <div style={{paddingTop:18}}>
+          <div style={{display:"flex",marginBottom:16,borderRadius:10,overflow:"hidden",border:"1px solid #D0E8F5"}}>
+            <div style={{background:C.blue,width:52,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+              <span style={{color:"#fff",fontWeight:700,fontSize:"1.4rem"}}>{task.id}</span>
+            </div>
+            <div style={{background:C.blueLt,padding:"12px 14px",flex:1}}>
+              <div style={{fontSize:"0.68rem",color:C.blue,fontWeight:700,letterSpacing:"0.1em",marginBottom:2}}>TASK {task.id} · {task.time}</div>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"1rem",color:C.navy,lineHeight:1.3}}>{task.title}</div>
+              <div style={{fontSize:"0.75rem",color:C.muted,marginTop:3,fontFamily:"'DM Sans', sans-serif"}}>{task.goal}</div>
+            </div>
+          </div>
+
+          <Callout type="objective" title={task.objective}/>
+
+          {task.celebrate&&<div style={{background:"#FFFBF0",border:"1px solid #F5D76E",borderRadius:8,padding:"12px 14px",marginBottom:12,fontFamily:"'DM Sans', sans-serif",fontSize:"0.88rem",color:"#7D5F00",lineHeight:1.55}}>🎉 {task.celebrate}</div>}
+
+          {task.needs&&<div style={{fontSize:"0.78rem",color:C.muted,background:C.grey,borderRadius:6,padding:"8px 12px",marginBottom:12,fontFamily:"'DM Sans', sans-serif",lineHeight:1.5}}><strong style={{color:"#444"}}>You will need: </strong>{task.needs}</div>}
+
+          {task.modelTip&&<Callout type="tip" title={task.modelTip.title} lines={task.modelTip.lines}/>}
+          {task.warning&&<Callout type={task.warning.type} title={task.warning.title} lines={task.warning.lines}/>}
+          {task.whyFirstLayer&&<Callout type="why" title="Why the first layer is everything" lines={[task.whyFirstLayer]}/>}
+
+          {task.steps&&(
+            <div style={{marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:16,marginBottom:6}}>
+                <div style={{fontSize:"0.68rem",color:C.subtle,fontWeight:700,letterSpacing:"0.12em"}}>STEPS</div>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <button onClick={()=>setShowWhy(w=>!w)} style={{background:showWhy?C.tealLt:C.grey,border:`1px solid ${showWhy?C.teal:"#ddd"}`,borderRadius:6,padding:"3px 8px",cursor:"pointer",fontSize:"0.68rem",color:showWhy?C.teal:C.subtle,fontWeight:700,letterSpacing:"0.05em"}}>
+                    {showWhy?"HIDE WHY":"SHOW WHY"}
+                  </button>
+                  <span style={{fontSize:"0.72rem",color:prog.done===prog.total?C.green:C.blue}}>{prog.done}/{prog.total}</span>
+                </div>
+              </div>
+              <div style={{height:3,background:"#EEE",borderRadius:2,marginBottom:10}}>
+                <div style={{width:`${prog.pct}%`,height:"100%",background:prog.pct===100?C.green:C.blue,borderRadius:2,transition:"width 0.3s"}}/>
+              </div>
+              {task.steps.map((step,i)=>(
+                <Step key={i} num={i+1} text={step.text} why={step.why} showWhy={showWhy} done={!!checks[`${task.id}-${i}`]} onToggle={()=>toggleCheck(`${task.id}-${i}`)}/>
+              ))}
+            </div>
+          )}
+
+          {task.orientationTip&&<Callout type="tip" title={task.orientationTip.title} lines={task.orientationTip.lines}/>}
+
+          {task.firstLayer&&(
+            <>
+              <div style={{fontSize:"0.68rem",color:C.subtle,fontWeight:700,letterSpacing:"0.12em",margin:"20px 0 10px"}}>FIRST LAYER ASSESSMENT</div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+                <div style={{border:"1px solid #A8D5B5",borderLeft:`4px solid ${C.green}`,borderRadius:"0 6px 6px 0",background:C.greenLt,padding:12}}>
+                  <div style={{fontWeight:700,color:C.green,fontSize:"0.78rem",marginBottom:8}}>✓ GOOD</div>
+                  {task.firstLayer.good.map((t,i)=><div key={i} style={{fontSize:"0.75rem",color:"#333",marginBottom:5,lineHeight:1.4,fontFamily:"'DM Sans', sans-serif"}}>– {t}</div>)}
+                </div>
+                <div style={{border:"1px solid #F0B8B2",borderLeft:`4px solid ${C.red}`,borderRadius:"0 6px 6px 0",background:C.redLt,padding:12}}>
+                  <div style={{fontWeight:700,color:C.red,fontSize:"0.78rem",marginBottom:8}}>✗ BAD</div>
+                  {task.firstLayer.bad.map((t,i)=><div key={i} style={{fontSize:"0.75rem",color:"#333",marginBottom:5,lineHeight:1.4,fontFamily:"'DM Sans', sans-serif"}}>– {t}</div>)}
+                </div>
+              </div>
+              <button onClick={()=>setLiveZOpen(p=>!p)} style={{width:"100%",background:liveZOpen?C.redLt:"#fff",border:`1px solid ${liveZOpen?C.red:"#EEE"}`,borderLeft:`4px solid ${C.red}`,borderRadius:"0 6px 6px 0",padding:"11px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                <span style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"0.83rem",color:C.red,textAlign:"left"}}>First layer looks bad? → Adjust Live Adjust Z</span>
+                <span style={{color:C.red,display:"inline-block",transform:liveZOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}>▼</span>
+              </button>
+              {liveZOpen&&(
+                <div style={{background:C.redLt,border:"1px solid #F0B8B2",borderTop:"none",borderRadius:"0 0 6px 6px",padding:"12px 14px",marginBottom:6}}>
+                  <Callout type="why" title="Why Live Adjust Z works" lines={[task.liveZ.why]}/>
+                  {task.liveZ.steps.map((s,i)=>(
+                    <div key={i} style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
+                      <div style={{width:20,height:20,borderRadius:"50%",background:C.red,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"0.7rem",fontWeight:700,flexShrink:0}}>{i+1}</div>
+                      <span style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.83rem",color:"#333",lineHeight:1.5,paddingTop:2}}>{s}</span>
+                    </div>
+                  ))}
+                  <div style={{fontSize:"0.78rem",color:C.muted,fontStyle:"italic",fontFamily:"'DM Sans', sans-serif",lineHeight:1.5}}>{task.liveZ.note}</div>
+                </div>
+              )}
+              <button onClick={()=>setCancelOpen(p=>!p)} style={{width:"100%",background:cancelOpen?C.blueLt:"#fff",border:`1px solid ${cancelOpen?C.blue:"#EEE"}`,borderLeft:`4px solid ${C.blue}`,borderRadius:"0 6px 6px 0",padding:"11px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6,marginBottom:2}}>
+                <span style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"0.83rem",color:C.blue,textAlign:"left"}}>Should I cancel this print?</span>
+                <span style={{color:C.blue,display:"inline-block",transform:cancelOpen?"rotate(180deg)":"none",transition:"transform 0.2s"}}>▼</span>
+              </button>
+              {cancelOpen&&(
+                <div style={{background:C.blueLt,border:"1px solid #D0E8F5",borderTop:"none",borderRadius:"0 0 6px 6px",padding:"12px 14px",marginBottom:6}}>
+                  {task.cancelDecision.items.map((item,i)=>(
+                    <div key={i} style={{display:"flex",gap:10,marginBottom:8,alignItems:"flex-start"}}>
+                      <span style={{fontSize:"0.9rem",flexShrink:0}}>{item.cancel?"🛑":"✅"}</span>
+                      <div>
+                        <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.82rem",fontWeight:600,color:C.text}}>{item.situation}</div>
+                        <div style={{fontFamily:"'DM Sans', sans-serif",fontSize:"0.78rem",color:item.cancel?C.red:C.green,marginTop:2}}>{item.action}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {task.after&&<div style={{fontSize:"0.82rem",color:C.muted,fontFamily:"'DM Sans', sans-serif",lineHeight:1.55,marginTop:10,fontStyle:"italic"}}>{task.after}</div>}
+            </>
+          )}
+
+          {task.note&&<Callout type={task.note.type} title={task.note.title} lines={task.note.lines}/>}
+          {!task.firstLayer&&task.warning&&task.steps&&<Callout type={task.warning.type} title={task.warning.title} lines={task.warning.lines}/>}
+
+          <Callout type="done" title={task.done}/>
+          <Callout type="reflect" title={task.reflection}/>
+
+          <div style={{display:"flex",gap:8,marginTop:16,flexWrap:"wrap"}}>
+            {!taskDone[task.id]?(
+              <button className="tap" onClick={()=>setTaskDone(p=>({...p,[task.id]:true}))} style={{background:C.blue,border:"none",borderRadius:8,padding:"10px 20px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:"0.88rem",fontFamily:"'DM Sans', sans-serif"}}>Mark Task Complete ✓</button>
+            ):(
+              <div style={{background:C.greenLt,border:"1px solid #A8D5B5",borderRadius:8,padding:"10px 14px",color:C.green,fontWeight:700,fontSize:"0.88rem",fontFamily:"'DM Sans', sans-serif"}}>✓ Completed</div>
+            )}
+            {task.id<TASKS.length&&(
+              <button className="tap" onClick={()=>goTask(task.id+1)} style={{background:C.grey,border:"1px solid #D0D8E0",borderRadius:8,padding:"10px 14px",color:C.navy,fontWeight:600,cursor:"pointer",fontSize:"0.88rem",fontFamily:"'DM Sans', sans-serif"}}>Next Task →</button>
+            )}
+            {task.id===TASKS.length&&allTasksDone&&(
+              <button className="tap" onClick={()=>goView("readiness")} style={{background:C.green,border:"none",borderRadius:8,padding:"10px 14px",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:"0.88rem",fontFamily:"'DM Sans', sans-serif"}}>Am I ready to print? →</button>
+            )}
+            <button className="tap" onClick={goHome} style={{background:"none",border:"1px solid #E0E0E0",borderRadius:8,padding:"10px 12px",color:C.subtle,cursor:"pointer",fontSize:"0.88rem",fontFamily:"'DM Sans', sans-serif"}}>← Home</button>
+          </div>
+        </div>
+      </Page>
+    );
+  }
+
+  return (
+    <Page>
+      <div style={{paddingTop:22}}>
+        <div style={{marginBottom:20}}>
+          <div style={{fontSize:"0.68rem",color:C.blue,fontWeight:700,letterSpacing:"0.12em",marginBottom:5}}>VANCOUVER HACKSPACE · VHS-3DP-PRUSAMK3</div>
+          <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"1.6rem",color:C.navy,lineHeight:1.2,marginBottom:6}}>3D Printing<br/>User Guide</div>
+          <div style={{fontSize:"0.82rem",color:C.muted,fontFamily:"'DM Sans', sans-serif"}}>Original Prusa i3 MK3S · Version 1.0</div>
+        </div>
+
+        <button className="tap" onClick={()=>goView("emergency")} style={{width:"100%",background:C.redLt,border:"1px solid #F0B8B2",borderLeft:`4px solid ${C.red}`,borderRadius:"0 8px 8px 0",padding:"11px 14px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,textAlign:"left"}}>
+          <div>
+            <div style={{fontWeight:700,color:C.red,fontSize:"0.8rem",fontFamily:"'DM Sans', sans-serif",marginBottom:2}}>⚠ Emergency Stop</div>
+            <div style={{fontSize:"0.75rem",color:"#555",fontFamily:"'DM Sans', sans-serif"}}>Smoke, burning smell, scraping, or LCD error → tap here</div>
+          </div>
+          <span style={{color:C.red}}>›</span>
+        </button>
+
+        <Callout type="warning" title="You must stay within eyesight of your print job while it is running."/>
+
+        {completedCount>0&&(
+          <div style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"11px 14px",marginTop:8,display:"flex",alignItems:"center",gap:12}}>
+            <div style={{flex:1}}>
+              <div style={{fontSize:"0.68rem",color:C.subtle,letterSpacing:"0.08em",marginBottom:5}}>YOUR PROGRESS</div>
+              <div style={{height:4,background:"#EEE",borderRadius:2}}>
+                <div style={{width:`${(completedCount/TASKS.length)*100}%`,height:"100%",background:completedCount===TASKS.length?C.green:C.blue,borderRadius:2,transition:"width 0.4s"}}/>
+              </div>
+            </div>
+            <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,color:completedCount===TASKS.length?C.green:C.blue,fontSize:"0.9rem"}}>{completedCount}/{TASKS.length}</div>
+          </div>
+        )}
+        {allTasksDone&&(
+          <button className="tap" onClick={()=>goView("readiness")} style={{width:"100%",background:C.greenLt,border:"1px solid #A8D5B5",borderLeft:`4px solid ${C.green}`,borderRadius:"0 8px 8px 0",padding:"11px 14px",marginTop:8,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,color:C.green,fontSize:"0.88rem"}}>✓ All tasks done — am I ready to print? →</span>
+          </button>
+        )}
+
+        <SectionLabel text="START HERE"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:4}}>
+          {[{label:"How This Printer Works",sub:"Build your mental model first",view:"howItWorks",icon:"🧠"},{label:"Choosing Filament",sub:"Decision framework + material guide",view:"filament",icon:"🧵"}].map((item)=>(
+            <button key={item.view} className="tap" onClick={()=>goView(item.view)} style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"12px",cursor:"pointer",textAlign:"left"}}>
+              <div style={{fontSize:"1.3rem",marginBottom:4}}>{item.icon}</div>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"0.83rem",color:C.navy,marginBottom:2}}>{item.label}</div>
+              <div style={{fontSize:"0.72rem",color:C.subtle,fontFamily:"'DM Sans', sans-serif"}}>{item.sub}</div>
+            </button>
+          ))}
+        </div>
+
+        <SectionLabel text="5 TASKS — COMPLETE IN ORDER"/>
+        <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:20}}>
+          {TASKS.map((t)=>{
+            const prog=taskProgress(t);
+            const done=taskDone[t.id];
+            return (
+              <button key={t.id} className="tap" onClick={()=>goTask(t.id)} style={{display:"flex",alignItems:"center",background:"#fff",border:`1px solid ${done?"#A8D5B5":"#E8E8E8"}`,borderRadius:8,cursor:"pointer",overflow:"hidden",textAlign:"left"}}>
+                <div style={{width:42,background:done?C.green:C.blue,display:"flex",alignItems:"center",justifyContent:"center",alignSelf:"stretch",flexShrink:0}}>
+                  <span style={{color:"#fff",fontWeight:700,fontSize:done?"0.95rem":"1.1rem"}}>{done?"✓":t.id}</span>
+                </div>
+                <div style={{flex:1,padding:"10px 12px"}}>
+                  <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:600,fontSize:"0.88rem",color:done?C.subtle:C.navy,marginBottom:2}}>{t.title}</div>
+                  <div style={{fontSize:"0.72rem",color:"#AAA",fontFamily:"'DM Sans', sans-serif"}}>{t.time} · {t.goal}</div>
+                  {prog.done>0&&!done&&<div style={{marginTop:5,height:2,background:"#EEE",borderRadius:1}}><div style={{width:`${prog.pct}%`,height:"100%",background:C.blue,borderRadius:1}}/></div>}
+                </div>
+                <span style={{padding:"0 12px",color:"#CCC"}}>›</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <SectionLabel text="ALSO AVAILABLE"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          {[{label:"Knowledge Check",sub:"10 questions across all 5 tasks",view:"knowledge"},{label:"Am I Ready?",sub:"Self-assessment checklist",view:"readiness"},{label:"What's Next",sub:"After your first print",view:"nextSteps"}].map((item)=>(
+            <button key={item.label} className="tap" onClick={()=>goView(item.view)} style={{background:"#fff",border:"1px solid #E8E8E8",borderRadius:8,padding:"12px",cursor:"pointer",textAlign:"left"}}>
+              <div style={{fontFamily:"'DM Sans', sans-serif",fontWeight:700,fontSize:"0.83rem",color:C.navy,marginBottom:2}}>{item.label}</div>
+              <div style={{fontSize:"0.72rem",color:C.subtle,fontFamily:"'DM Sans', sans-serif"}}>{item.sub}</div>
+            </button>
+          ))}
+        </div>
+
+        <div style={{marginTop:20,fontSize:"0.68rem",color:"#CCCCCC",textAlign:"center",fontFamily:"'DM Sans', sans-serif"}}>
+          VHS-3DP-PRUSAMK3 · Training Guide · v4.0 · April 2026
+        </div>
+      </div>
+    </Page>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+  </script>
+</body>
+</html>
