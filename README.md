@@ -51,10 +51,6 @@ No build step required. Save the file and refresh the browser to see changes.
 Original Prusa i3 MK3S — Vancouver Hackspace  
 Document number: VHS-3DP-PRUSAMK3
 
-## License
-
-Creative Commons Zero v1.0 Universal (CC0) — public domain. Use, adapt, and share freely.
-
 ## Built with
 
 React (via CDN) and plain HTML.
