@@ -4,7 +4,7 @@ An interactive, mobile-friendly web guide for the Original Prusa i3 MK3S at Vanc
 
 ## What it is
 
-A static HTML instructional guide to the Prusa printers at the Vancouver.
+A static web page designed to be used at the printer on a phone or laptop at the Vancouver Hackspace.
 
 There is no server, no database, and no installation required. It runs entirely in the browser. Progress is not saved between sessions.
 
@@ -17,7 +17,6 @@ There is no server, no database, and no installation required. It runs entirely 
 ## Features
 
 **Training guide (`index.html`)**
-
 - How This Printer Works — mental model and labelled diagram
 - Filament guide with decision framework
 - 5 step-by-step tasks with tappable checklists
@@ -50,6 +49,10 @@ No build step required. Save the file and refresh the browser to see changes.
 
 Original Prusa i3 MK3S — Vancouver Hackspace  
 Document number: VHS-3DP-PRUSAMK3
+
+## License
+
+Creative Commons Zero v1.0 Universal (CC0) — public domain. Use, adapt, and share freely.
 
 ## Built with
 
